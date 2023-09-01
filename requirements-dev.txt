@@ -1,0 +1,6 @@
+pylint
+black
+isort
+
+# Testing requirements
+pytest

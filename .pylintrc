@@ -1,0 +1,10 @@
+[MASTER]
+good-names=df, mu, ax
+extension-pkg-whitelist=numpy, pydantic
+
+[MESSAGES CONTROL]
+disable=line-too-long,attribute-defined-outside-init  # Using black to format code; TODO remove the attribute-defined-outside-init
+
+[TYPECHECK]
+ignored-modules=numpy
+ignored-classes=numpy
