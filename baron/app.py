@@ -5,6 +5,7 @@ Baron Fortesque App
 import logging
 
 from flask import Flask, Response, render_template, request
+
 from baron.animation import gen_frames
 
 app = Flask(__name__)
@@ -27,13 +28,13 @@ def talk():
     logging.info('Received text %s', text)
     return 'OK'
 
-@app.route('/video_feed')
+@app.route('/video')
 def video_feed():
     """
     Returns a video feed
     """
-    Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, threaded = True, port=5000)
