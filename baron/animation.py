@@ -14,34 +14,34 @@ from PIL import Image
 from baron import IMAGES
 
 
-def convert_from_cv2_to_image(img: np.ndarray) -> Image:
-    # return Image.fromarray(img)
+def cv2_to_image(img: np.ndarray) -> Image:
+    """
+    Convert a cv2 image to a PIL image.
+    """
     return Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
 
 
-def convert_from_image_to_cv2(img: Image) -> np.ndarray:
-    # return np.asarray(img)
+def image_to_cv2(img: Image) -> np.ndarray:
+    """
+    Convert a PIL image to a cv2 image.
+    """
     return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
-
-class Frames(Generator):
+class Animation:
     """
-    Iterator class to return frames of an animation.
+    Stores the animation algorithms.
     """
-    def __init__(self):
-        super().__init__()
-        self.fade_images = [cv2.imread((IMAGES / "fade" / f"{i:03d}.png").as_posix()) for i in range(23)]
-        self.fade_index = -1
-        self.current_animation_algorithm = self.fade_in
+    fade_images = [cv2.imread((IMAGES / "fade" / f"{i:03d}.png").as_posix()) for i in range(23)]
+    fade_index = -1
 
-        self.features = {
+    features = {
             'top': [cv2.imread((IMAGES / "features" / 'top' / f"{i}.png").as_posix()) for i in range(5)],
             'bottom' : [cv2.imread((IMAGES / "features" / 'bottom' / f"{i}.png").as_posix()) for i in range(8)]
         }
-        self.bottom_index = 0
-        self.top_index = 0
-
-        self.idle_count = 0
+    bottom_index = 0
+    top_index = 0
+    idle_count = 0
+    frame_delay = 0.1
 
     def fade_in(self):
         """
@@ -61,7 +61,6 @@ class Frames(Generator):
             self.current_animation_algorithm = self.fade_in
         return self.fade_images[self.fade_index]
 
-
     def idle(self):
         """
         Idle animation.
@@ -71,7 +70,7 @@ class Frames(Generator):
         if self.idle_count > 100:
             self.idle_count = 0
             self.current_animation_algorithm = self.sleep
-            
+
         # if closed eyes, open them
         if (self.top_index == 0 or self.top_index == 4) and random() > 0.02:
             self.top_index = choice([1, 2, 3])
@@ -88,6 +87,9 @@ class Frames(Generator):
                             self.features['bottom'][self.bottom_index]])
 
     def sleep(self):
+        """
+        Sleep animation.
+        """
         if self.fade_index > 6:
             self.fade_index -= 1
         return self.fade_images[self.fade_index]
@@ -96,35 +98,66 @@ class Frames(Generator):
         """
         Speak animation.
         """
-        pass
+
+class Stream(Generator, Animation):
+    """
+    Iterator class to return frames of an animation.
+    """
+    glitcher = ImageGlitcher()
+
+    def __init__(self):
+        super().__init__()
+        self.current_animation_algorithm = self.fade_in
+
+    @classmethod
+    def glitch(cls, img: np.ndarray) -> np.ndarray:
+        """
+        Glitch animation.
+        """
+        glitched_pil_image = cls.glitcher.glitch_image(src_img=cv2_to_image(img), glitch_amount=1, glitch_change=0.1, cycle=True, color_offset=False, scan_lines=True, gif=False, frames=23, step=1)
+        glitched_img = image_to_cv2(glitched_pil_image)
+        return glitched_img
 
     def send(self, value):
         """
         Send the next frame.
         """
-        return self.current_animation_algorithm()
+        sleep(self.frame_delay)
+        base = self.current_animation_algorithm()
+        img = self.glitch(base)
+        return img
 
-    def throw(self, value):
+    def throw(self, typ=None, val=None, tb=None):
         print("Exception Thrown in Generator.")
         raise StopIteration
 
-def gen_frames():
+def generate_frames(queue):
     """
     Generator function to return frames of an animation.
     """
-    frames = Frames()
-    glitcher = ImageGlitcher()
+    stream = Stream()
+    while True:
+        queue.put(next(stream))
+
+def stream_frames():
+    """
+    Read frames from the queue.
+    """
+
+    import multiprocessing as mp
+    queue = mp.Queue()
+
+    generator = mp.Process(target=generate_frames, args=(queue, ))
+    generator.start()
 
     while True:
-        sleep(0.1)
-        try:
+        img = queue.get()
+        (_flag, encoded_image) = cv2.imencode(".jpg", img)
+        yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
+            bytearray(encoded_image) + b'\r\n')
 
-            # to PIL image
-            pil_image = glitcher.glitch_image(src_img=convert_from_cv2_to_image(next(frames)), glitch_amount=1, glitch_change=0.1, cycle=True, color_offset=False, scan_lines=True, gif=False, frames=23, step=1)
-            img = convert_from_image_to_cv2(pil_image)
+def handle_text(text: str):
 
-            (_flag, encoded_image) = cv2.imencode(".jpg", img)
-            yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
-                bytearray(encoded_image) + b'\r\n')
-        except StopIteration:
-            break
+    for word in nltk.word_tokenize(text):
+        phonemes = get_phonemes(word)
+        words_queue.put(phonemes)

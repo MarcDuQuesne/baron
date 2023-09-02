@@ -4,9 +4,10 @@ Baron Fortesque App
 
 import logging
 
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, request
 
-from baron.animation import gen_frames
+from baron.animation import stream_frames, handle_text
+from baron.matching import get_phonemes
 
 app = Flask(__name__)
 
@@ -26,6 +27,8 @@ def talk():
     """
     text = request.body.decode('utf-8')
     logging.info('Received text %s', text)
+    phonemes = get_phonemes(text)
+
     return 'OK'
 
 @app.route('/video')
@@ -33,8 +36,8 @@ def video_feed():
     """
     Returns a video feed
     """
-    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
+    return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == "__main__":
+
     app.run(debug=True, threaded = True, port=5000)
