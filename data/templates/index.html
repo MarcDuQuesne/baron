@@ -40,7 +40,7 @@
 
 <body>
     <img id="video" src="{{ url_for('video') }}" type='multipart/x-mixed-replace; boundary=frame' alt="Video Stream">
-    <audio controls autoplay>
+    <audio controls autoplay hidden>
         <source src="{{ url_for('audio') }}" type="audio/x-wav;codec=pcm">
         Your browser does not support the audio element.
     </audio>
