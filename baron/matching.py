@@ -6,8 +6,8 @@ import nltk
 from nltk.corpus import cmudict
 
 # Necessary downloads for the CMU Pronouncing Dictionary
-nltk.download('cmudict')
-nltk.download('punkt')
+nltk.download('cmudict', quiet=True)
+nltk.download('punkt', quiet=True)
 # Initialize the CMU Pronouncing Dictionary
 prondict = cmudict.dict()
 

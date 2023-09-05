@@ -7,11 +7,11 @@ import multiprocessing as mp
 import queue as Queue  # Rename the queue module to avoid naming conflicts
 from multiprocessing.queues import Queue as mpQueue
 
-from flask import Flask, Response, request
+from flask import Flask, Response, render_template, request
 
+from baron import TEMPLATES
 from baron.animation import generate_frames, stream_frames
-from baron.matching import get_phonemes
-from baron.tts import generate_audio, stream_audio, generate_audio
+from baron.tts import generate_audio, stream_audio
 
 
 class SlidingQueue(mpQueue):
@@ -37,7 +37,7 @@ class SlidingQueue(mpQueue):
 frames_queue = SlidingQueue(maxsize=2)
 text2wav = mp.Queue()
 wav2stream = mp.Queue()
-app = Flask(__name__)
+app = Flask(__name__, template_folder=TEMPLATES.as_posix())
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,7 +47,7 @@ def index():
     """
     Returns the index page
     """
-    return "Hello, World!"
+    return render_template('index.html')
 
 @app.route('/talk', methods=['POST'])
 def talk():
@@ -60,7 +60,7 @@ def talk():
     return 'OK'
 
 @app.route('/audio')
-def audio_feed():
+def audio():
     """
     Audio stream
     """
@@ -69,7 +69,7 @@ def audio_feed():
     return Response(stream_audio(wav2stream), mimetype="audio/x-wav")
 
 @app.route('/video')
-def video_feed():
+def video():
     """
     Returns a video feed
     """
