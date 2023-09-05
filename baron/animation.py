@@ -12,6 +12,7 @@ from glitch_this import ImageGlitcher
 from PIL import Image
 
 from baron import IMAGES
+from baron.matching import mapping
 
 
 def cv2_to_image(img: np.ndarray) -> Image:
@@ -94,10 +95,12 @@ class Animation:
             self.fade_index -= 1
         return self.fade_images[self.fade_index]
 
-    def speak(self, word: str):
+    def speak(self):
         """
         Speak animation.
         """
+        phoneme = self.phonemes_queue.get()
+        self.bottom_index = mapping[phoneme]
 
 class Stream(Generator, Animation):
     """
@@ -105,8 +108,9 @@ class Stream(Generator, Animation):
     """
     glitcher = ImageGlitcher()
 
-    def __init__(self):
+    def __init__(self, phonemes_queue):
         super().__init__()
+        self.phonemes_queue = phonemes_queue
         self.current_animation_algorithm = self.fade_in
 
     @classmethod
@@ -122,42 +126,35 @@ class Stream(Generator, Animation):
         """
         Send the next frame.
         """
+        # self.phoneme = self.phonemes_queue.get(timeout=self.frame_delay)
+        # if self.phoneme:
+        #     self.current_animation_algorithm = self.speak
+
         sleep(self.frame_delay)
         base = self.current_animation_algorithm()
         img = self.glitch(base)
+
         return img
 
     def throw(self, typ=None, val=None, tb=None):
         print("Exception Thrown in Generator.")
         raise StopIteration
 
-def generate_frames(queue):
+def generate_frames(frames_queue, text_queue):
     """
     Generator function to return frames of an animation.
     """
-    stream = Stream()
+    stream = Stream(text_queue)
     while True:
-        queue.put(next(stream))
+        frames_queue.put(next(stream))
 
-def stream_frames():
+def stream_frames(queue):
     """
     Read frames from the queue.
     """
-
-    import multiprocessing as mp
-    queue = mp.Queue()
-
-    generator = mp.Process(target=generate_frames, args=(queue, ))
-    generator.start()
 
     while True:
         img = queue.get()
         (_flag, encoded_image) = cv2.imencode(".jpg", img)
         yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
             bytearray(encoded_image) + b'\r\n')
-
-def handle_text(text: str):
-
-    for word in nltk.word_tokenize(text):
-        phonemes = get_phonemes(word)
-        words_queue.put(phonemes)
