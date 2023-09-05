@@ -1,6 +1,6 @@
 [MASTER]
 good-names=df, mu, ax
-extension-pkg-whitelist=numpy, pydantic
+extension-pkg-whitelist=numpy, pydantic, cv2
 
 [MESSAGES CONTROL]
 disable=line-too-long,attribute-defined-outside-init  # Using black to format code; TODO remove the attribute-defined-outside-init
