@@ -2,9 +2,14 @@
 # import pyttsx3
 
 import io
+import time
 import wave
 
 from baron import AUDIO
+
+chunk_size = 1024
+sample_rate = 11025
+channels = 1
 
 # from io import BytesIO
 # audio = pyaudio.PyAudio()
@@ -34,7 +39,11 @@ def record():
     data = stream.read(CHUNK)
     return data
 
-def genHeader(sampleRate, bitsPerSample, channels):
+def genHeader(sampleRate: int, bitsPerSample: int, channels: int):
+    """
+    Generates a WAV header for a file that has the specified properties.
+    """
+
     datasize = 2000*10**6
     o = bytes("RIFF",'ascii')                                               # (4byte) Marks file as RIFF
     o += (datasize + 36).to_bytes(4,'little')                               # (4byte) File size in bytes excluding this and RIFF marker
@@ -54,40 +63,29 @@ def genHeader(sampleRate, bitsPerSample, channels):
 def generate_audio(text2wav, wav2stream):
     """Audio streaming generator function."""
 
+    # wav_from_stream = io.BytesIO(wav2stream.get())
+
+    wav = wave.open((AUDIO / "applause.wav").as_posix(), 'rb')
     while True:
         # text = text2wav.get()
         # wav = ... # tts magic here
+        data = wav.readframes(chunk_size)
+        if data == b'':
+            # data = bytes(0 for i in range(int(chunk_size)))
+            data = bytes(0 for i in range(2*sample_rate)) # 1 s
+            wav.rewind()
 
-        with open((AUDIO / "applause.wav").as_posix(), 'rb') as wav:
-            wav2stream.put(wav.read())
-            pass
-        import time
-        time.sleep(3)
+        wav2stream.send_bytes(data)
+        time.sleep(chunk_size / (sample_rate*channels))
+
 
 def stream_audio(wav2stream):
     """Audio streaming generator function."""
-    # data_to_stream = genHeader(44100, 32, 1, 200000) + currChunk
-    # yield data_to_stream
 
-    wav_header = genHeader(bitsPerSample=32, sampleRate=44100, channels=1)
-
-    # while True:
-        # wav = io.BytesIO(wav2stream.get())
-    # with open((AUDIO / "applause.wav").as_posix(), 'rb') as wav:
-        # wav2stream.put(wav.read())
-    chunk_size = 1024
-    first_time = True
+    header_data = genHeader(bitsPerSample=8, sampleRate=sample_rate, channels=channels)
+    yield header_data
 
     while True:
-        wav_from_stream = io.BytesIO(wav2stream.get())
-        with wave.open(wav_from_stream, 'rb') as wav_file:
-            header_data = genHeader(bitsPerSample=wav_file.getsampwidth()*8, sampleRate=wav_file.getframerate(), channels=1)
-            data = wav_file.readframes(chunk_size)
-            while data:
-                if first_time:
-                    first_time = False
-                    yield header_data + data
-                else:
-                    yield data
-                data = wav_file.readframes(chunk_size)
+        data = wav2stream.recv_bytes()
+        yield data
 

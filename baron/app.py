@@ -35,8 +35,11 @@ class SlidingQueue(mpQueue):
         super(SlidingQueue, self).put(obj, block, timeout)
 
 frames_queue = SlidingQueue(maxsize=2)
+# text2wav = mp.Queue()
 text2wav = mp.Queue()
-wav2stream = mp.Queue()
+# wav2stream = mp.Queue()
+conn1, conn2 = mp.Pipe()
+
 app = Flask(__name__, template_folder=TEMPLATES.as_posix())
 
 logging.basicConfig(level=logging.INFO)
@@ -66,7 +69,7 @@ def audio():
     """
 
     # return Response(generate_audio(text2wav, wav2stream), mimetype="audio/x-wav")
-    return Response(stream_audio(wav2stream), mimetype="audio/x-wav")
+    return Response(stream_audio(conn2), mimetype="audio/x-wav")
 
 @app.route('/video')
 def video():
@@ -78,7 +81,7 @@ def video():
 if __name__ == "__main__":
 
     video_generator = mp.Process(target=generate_frames, args=(frames_queue, text2wav ))
-    audio_generator = mp.Process(target=generate_audio, args=(text2wav, wav2stream))
+    audio_generator = mp.Process(target=generate_audio, args=(text2wav, conn1))
     video_generator.start()
     audio_generator.start()
     import time
